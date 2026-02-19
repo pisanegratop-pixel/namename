@@ -1,450 +1,461 @@
 --[[
-██████╗ ███████╗██████╗ ██╗   ██╗ ██████╗ 
-██╔══██╗██╔════╝██╔══██╗██║   ██║██╔════╝ 
-██████╔╝█████╗  ██████╔╝██║   ██║██║  ███╗
-██╔══██╗██╔══╝  ██╔══██╗██║   ██║██║   ██║
-██████╔╝███████╗██║  ██║╚██████╔╝╚██████╔╝
-╚═════╝ ╚══════╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝ 
-                                          
-███████╗███████╗██████╗                     
-██╔════╝██╔════╝██╔══██╗                    
-███████╗█████╗  ██████╔╝                    
-╚════██║██╔══╝  ██╔═══╝                     
-███████║███████╗██║                         
-╚══════╝╚══════╝╚═╝                         
---]]
+    ULTIMATE ESP MENU v2.0
+    Полностью переработанная версия
+]]
 
-print("🚀 Запуск ESP меню...")
+-- Сервисы
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+local StarterGui = game:GetService("StarterGui")
+local Camera = workspace.CurrentCamera
 
-local player = game.Players.LocalPlayer
-local camera = workspace.CurrentCamera
-local tweenService = game:GetService("TweenService")
-local userInputService = game:GetService("UserInputService")
-local runService = game:GetService("RunService")
+-- Переменные
+local LocalPlayer = Players.LocalPlayer
+local ESPEnabled = false
+local ESPObjects = {}
+local MenuVisible = true
+local Settings = {
+    Box = true,
+    Tracer = true,
+    Name = true,
+    Distance = true,
+    Health = true,
+    HeadDot = true,
+    BoxColor = Color3.fromRGB(255, 255, 255),
+    TracerColor = Color3.fromRGB(255, 255, 255),
+    NameColor = Color3.fromRGB(255, 255, 255),
+    DistanceColor = Color3.fromRGB(255, 255, 255),
+    HealthColor = Color3.fromRGB(0, 255, 0),
+    DotColor = Color3.fromRGB(255, 0, 0)
+}
 
--- Переменные состояния
-local espEnabled = false
-local espObjects = {}
-local menuVisible = true
-local enemiesFolder = nil
-
--- Ждем загрузки игрока
-repeat task.wait() until player and player.Character
-print("✅ Игрок загружен:", player.Name)
-
--- Функция безопасного получения персонажа
-local function getCharacter()
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        return player.Character, player.Character.HumanoidRootPart
-    else
-        local char = player.CharacterAdded:Wait(5)
-        if char then
-            local root = char:WaitForChild("HumanoidRootPart", 5)
-            return char, root
-        end
-    end
-    return nil, nil
-end
-
-local character, rootPart = getCharacter()
-if not character or not rootPart then
-    warn("❌ Не удалось загрузить персонажа!")
-    character = player.Character or workspace:FindFirstChildWhichIsA("Model")
-    rootPart = character and character:FindFirstChild("HumanoidRootPart")
-end
-
-print("✅ Персонаж загружен:", character and character.Name)
-
--- Ищем или создаем папку с врагами
-enemiesFolder = workspace:FindFirstChild("Enemies")
-if not enemiesFolder then
-    print("📁 Папка Enemies не найдена, создаем...")
-    enemiesFolder = Instance.new("Folder")
-    enemiesFolder.Name = "Enemies"
-    enemiesFolder.Parent = workspace
-    
-    -- Для теста создадим несколько врагов если их нет
-    task.wait(1)
-    if #enemiesFolder:GetChildren() == 0 then
-        print("👾 Создаю тестовых врагов для проверки...")
-        local dummy = Instance.new("Model")
-        dummy.Name = "TestEnemy"
-        local part = Instance.new("Part")
-        part.Name = "HumanoidRootPart"
-        part.Size = Vector3.new(2, 2, 1)
-        part.Position = Vector3.new(10, 5, 10)
-        part.Anchored = true
-        part.Parent = dummy
-        local hum = Instance.new("Humanoid")
-        hum.Parent = dummy
-        dummy.Parent = enemiesFolder
-        
-        local dummy2 = dummy:Clone()
-        dummy2.Name = "TestEnemy2"
-        dummy2.Parent = enemiesFolder
-        dummy2.HumanoidRootPart.Position = Vector3.new(-10, 5, 15)
-    end
-end
-print("✅ Папка врагов готова, найдено объектов:", #enemiesFolder:GetChildren())
-
--- Удаляем старый GUI если есть
-local oldGui = player.PlayerGui:FindFirstChild("ESPMenu")
-if oldGui then
-    oldGui:Destroy()
-    task.wait(0.1)
-end
-
--- Создаем основной GUI
-local gui = Instance.new("ScreenGui")
-gui.Name = "ESPMenu"
-gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
-gui.DisplayOrder = 999 -- Поверх всего
-print("✅ GUI создан")
-
--- ========== МЕНЮ ==========
-local menuFrame = Instance.new("Frame")
-menuFrame.Name = "MainMenu"
-menuFrame.Size = UDim2.new(0, 300, 0, 220)
-menuFrame.Position = UDim2.new(0.5, -150, 0.5, -110)
-menuFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-menuFrame.BackgroundTransparency = 0
-menuFrame.Parent = gui
-menuFrame.Active = true
-menuFrame.Visible = true
-
--- Градиент
-local gradient = Instance.new("UIGradient")
-gradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 40, 60)),
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(60, 40, 80)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 40, 100))
-})
-gradient.Parent = menuFrame
-
--- Закругленные углы
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = menuFrame
-
--- Верхняя полоса
-local topBar = Instance.new("Frame")
-topBar.Name = "TopBar"
-topBar.Size = UDim2.new(1, 0, 0, 30)
-topBar.Position = UDim2.new(0, 0, 0, 0)
-topBar.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-topBar.BackgroundTransparency = 0.3
-topBar.Parent = menuFrame
-
-local topBarCorner = Instance.new("UICorner")
-topBarCorner.CornerRadius = UDim.new(0, 12)
-topBarCorner.Parent = topBar
-
--- Заголовок
-local title = Instance.new("TextLabel")
-title.Name = "Title"
-title.Size = UDim2.new(1, -40, 1, 0)
-title.Position = UDim2.new(0, 10, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "ESP Controls"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Font = Enum.Font.GothamBold
-title.TextSize = 18
-title.Parent = topBar
-
--- Кнопка закрытия
-local closeButton = Instance.new("ImageButton")
-closeButton.Name = "CloseButton"
-closeButton.Size = UDim2.new(0, 20, 0, 20)
-closeButton.Position = UDim2.new(1, -25, 0, 5)
-closeButton.BackgroundTransparency = 1
-closeButton.Image = "rbxassetid://3926305904"
-closeButton.ImageColor3 = Color3.fromRGB(255, 100, 100)
-closeButton.Parent = topBar
-
--- Кнопка ESP
-local espButton = Instance.new("TextButton")
-espButton.Name = "ESPButton"
-espButton.Size = UDim2.new(0.8, 0, 0, 40)
-espButton.Position = UDim2.new(0.1, 0, 0.25, 0)
-espButton.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-espButton.Text = "Включить ESP"
-espButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-espButton.Font = Enum.Font.Gotham
-espButton.TextSize = 16
-espButton.Parent = menuFrame
-
-local buttonCorner = Instance.new("UICorner")
-buttonCorner.CornerRadius = UDim.new(0, 8)
-buttonCorner.Parent = espButton
-
-local buttonGradient = Instance.new("UIGradient")
-buttonGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(70, 70, 90)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 50, 70))
-})
-buttonGradient.Parent = espButton
-
--- Статус
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Name = "StatusLabel"
-statusLabel.Size = UDim2.new(0.8, 0, 0, 30)
-statusLabel.Position = UDim2.new(0.1, 0, 0.55, 0)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "ESP: Выключен"
-statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextSize = 14
-statusLabel.Parent = menuFrame
-
--- Инфо о врагах
-local enemyCountLabel = Instance.new("TextLabel")
-enemyCountLabel.Name = "EnemyCountLabel"
-enemyCountLabel.Size = UDim2.new(0.8, 0, 0, 30)
-enemyCountLabel.Position = UDim2.new(0.1, 0, 0.7, 0)
-enemyCountLabel.BackgroundTransparency = 1
-enemyCountLabel.Text = "Врагов: " .. #enemiesFolder:GetChildren()
-enemyCountLabel.TextColor3 = Color3.fromRGB(150, 150, 255)
-enemyCountLabel.Font = Enum.Font.Gotham
-enemyCountLabel.TextSize = 14
-enemyCountLabel.Parent = menuFrame
-
--- Кнопка открытия
-local openButton = Instance.new("ImageButton")
-openButton.Name = "OpenButton"
-openButton.Size = UDim2.new(0, 50, 0, 50)
-openButton.Position = UDim2.new(0, 20, 0.9, -70)
-openButton.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-openButton.BackgroundTransparency = 0.3
-openButton.Image = "rbxassetid://3926307979"
-openButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
-openButton.Parent = gui
-openButton.Visible = false
-
-local openButtonCorner = Instance.new("UICorner")
-openButtonCorner.CornerRadius = UDim.new(1, 0)
-openButtonCorner.Parent = openButton
-
-print("✅ Элементы меню созданы")
-
--- ========== ФУНКЦИИ ESP ==========
-local function createESP(enemy)
-    if not espEnabled then return end
-    if not enemy or not enemy.Parent then return end
-    
-    local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
-    if not enemyRoot then return end
-    if enemy:FindFirstChild("ESP_Gui") then return end
-    
+-- Загрузка настроек
+local function LoadSettings()
     pcall(function()
-        local billboard = Instance.new("BillboardGui")
-        billboard.Name = "ESP_Gui"
-        billboard.Adornee = enemyRoot
-        billboard.Size = UDim2.new(0, 200, 0, 50)
-        billboard.StudsOffset = Vector3.new(0, 3, 0)
-        billboard.AlwaysOnTop = true
-        
-        local label = Instance.new("TextLabel")
-        label.Name = "ESP_Label"
-        label.Size = UDim2.new(1, 0, 1, 0)
-        label.BackgroundTransparency = 1
-        label.TextColor3 = Color3.new(1, 0, 0)
-        label.TextStrokeTransparency = 0.3
-        label.Font = Enum.Font.SourceSansBold
-        label.TextSize = 18
-        label.Text = enemy.Name .. "\n??м"
-        
-        label.Parent = billboard
-        billboard.Parent = enemy
-        
-        table.insert(espObjects, billboard)
+        local Data = HttpService:JSONDecode(readfile("ESPSettings.json"))
+        if Data then
+            for i,v in pairs(Data) do
+                Settings[i] = v
+            end
+        end
     end)
 end
 
-local function clearESP()
-    for i, obj in ipairs(espObjects) do
-        pcall(function()
-            if obj and obj.Parent then
-                obj:Destroy()
-            end
-        end)
-    end
-    espObjects = {}
+-- Сохранение настроек
+local function SaveSettings()
+    pcall(function()
+        writefile("ESPSettings.json", HttpService:JSONEncode(Settings))
+    end)
 end
 
-local function toggleESP()
-    espEnabled = not espEnabled
+LoadSettings()
+
+-- Создание GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "UltimateESP"
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = (CoreGui or Players.LocalPlayer:WaitForChild("PlayerGui"))
+
+-- Главное меню
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 350, 0, 450)
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -225)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MainFrame.BackgroundTransparency = 0.1
+MainFrame.Parent = ScreenGui
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+-- Градиент
+local Gradient = Instance.new("UIGradient")
+Gradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 45)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(45, 35, 60)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(60, 40, 75))
+})
+Gradient.Parent = MainFrame
+
+-- Закругление
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = MainFrame
+
+-- Верхняя панель
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 35)
+TopBar.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+TopBar.BackgroundTransparency = 0.3
+TopBar.Parent = MainFrame
+
+local TopBarCorner = Instance.new("UICorner")
+TopBarCorner.CornerRadius = UDim.new(0, 12)
+TopBarCorner.Parent = TopBar
+
+-- Заголовок
+local Title = Instance.new("TextLabel")
+Title.Name = "Title"
+Title.Size = UDim2.new(1, -50, 1, 0)
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "ULTIMATE ESP v2.0"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.Parent = TopBar
+
+-- Кнопка закрытия
+local CloseButton = Instance.new("ImageButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 25, 0, 25)
+CloseButton.Position = UDim2.new(1, -30, 0, 5)
+CloseButton.BackgroundTransparency = 1
+CloseButton.Image = "rbxassetid://3926305904"
+CloseButton.ImageColor3 = Color3.fromRGB(255, 100, 100)
+CloseButton.Parent = TopBar
+
+-- Создание свитчей
+local function CreateSwitch(Name, Default, PositionY, Callback)
+    local SwitchFrame = Instance.new("Frame")
+    SwitchFrame.Size = UDim2.new(0.9, 0, 0, 40)
+    SwitchFrame.Position = UDim2.new(0.05, 0, 0, PositionY)
+    SwitchFrame.BackgroundTransparency = 1
+    SwitchFrame.Parent = MainFrame
     
-    if espEnabled then
-        espButton.Text = "Выключить ESP"
-        statusLabel.Text = "ESP: Включен"
-        statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(0.7, 0, 1, 0)
+    Label.Position = UDim2.new(0, 10, 0, 0)
+    Label.BackgroundTransparency = 1
+    Label.Text = Name
+    Label.TextColor3 = Color3.fromRGB(220, 220, 255)
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Font = Enum.Font.Gotham
+    Label.TextSize = 16
+    Label.Parent = SwitchFrame
+    
+    local Switch = Instance.new("TextButton")
+    Switch.Size = UDim2.new(0, 50, 0, 25)
+    Switch.Position = UDim2.new(1, -60, 0.5, -12.5)
+    Switch.BackgroundColor3 = Default and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 100, 100)
+    Switch.Text = Default and "ON" or "OFF"
+    Switch.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Switch.Font = Enum.Font.GothamBold
+    Switch.TextSize = 14
+    Switch.Parent = SwitchFrame
+    
+    local SwitchCorner = Instance.new("UICorner")
+    SwitchCorner.CornerRadius = UDim.new(0, 6)
+    SwitchCorner.Parent = Switch
+    
+    Switch.MouseButton1Click:Connect(function()
+        Default = not Default
+        Switch.BackgroundColor3 = Default and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 100, 100)
+        Switch.Text = Default and "ON" or "OFF"
+        Callback(Default)
+    end)
+    
+    return Switch
+end
+
+-- Создание меню
+local Y = 45
+CreateSwitch("Box ESP", Settings.Box, Y, function(v) Settings.Box = v SaveSettings() end)
+Y = Y + 45
+CreateSwitch("Tracers", Settings.Tracer, Y, function(v) Settings.Tracer = v SaveSettings() end)
+Y = Y + 45
+CreateSwitch("Show Names", Settings.Name, Y, function(v) Settings.Name = v SaveSettings() end)
+Y = Y + 45
+CreateSwitch("Show Distance", Settings.Distance, Y, function(v) Settings.Distance = v SaveSettings() end)
+Y = Y + 45
+CreateSwitch("Health Bar", Settings.Health, Y, function(v) Settings.Health = v SaveSettings() end)
+Y = Y + 45
+CreateSwitch("Head Dot", Settings.HeadDot, Y, function(v) Settings.HeadDot = v SaveSettings() end)
+
+-- Кнопка открытия
+local OpenButton = Instance.new("ImageButton")
+OpenButton.Name = "OpenButton"
+OpenButton.Size = UDim2.new(0, 50, 0, 50)
+OpenButton.Position = UDim2.new(0, 20, 0.9, -70)
+OpenButton.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+OpenButton.BackgroundTransparency = 0.2
+OpenButton.Image = "rbxassetid://3926307979"
+OpenButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
+OpenButton.Parent = ScreenGui
+OpenButton.Visible = false
+
+local OpenButtonCorner = Instance.new("UICorner")
+OpenButtonCorner.CornerRadius = UDim.new(1, 0)
+OpenButtonCorner.Parent = OpenButton
+
+-- Анимации кнопок
+CloseButton.MouseEnter:Connect(function()
+    TweenService:Create(CloseButton, TweenInfo.new(0.2), {ImageColor3 = Color3.fromRGB(255, 50, 50)}):Play()
+end)
+CloseButton.MouseLeave:Connect(function()
+    TweenService:Create(CloseButton, TweenInfo.new(0.2), {ImageColor3 = Color3.fromRGB(255, 100, 100)}):Play()
+end)
+
+OpenButton.MouseEnter:Connect(function()
+    TweenService:Create(OpenButton, TweenInfo.new(0.2), {BackgroundTransparency = 0.5}):Play()
+end)
+OpenButton.MouseLeave:Connect(function()
+    TweenService:Create(OpenButton, TweenInfo.new(0.2), {BackgroundTransparency = 0.2}):Play()
+end)
+
+-- Функции меню
+local function ToggleMenu()
+    MenuVisible = not MenuVisible
+    if MenuVisible then
+        MainFrame.Visible = true
+        OpenButton.Visible = false
+        TweenService:Create(MainFrame, TweenInfo.new(0.3), {BackgroundTransparency = 0.1}):Play()
+    else
+        TweenService:Create(MainFrame, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+        task.wait(0.3)
+        MainFrame.Visible = false
+        OpenButton.Visible = true
+    end
+end
+
+CloseButton.MouseButton1Click:Connect(ToggleMenu)
+OpenButton.MouseButton1Click:Connect(ToggleMenu)
+
+-- ESP Core
+local function DrawESP(Player)
+    if Player == LocalPlayer then return end
+    
+    local function UpdateESP()
+        if not ESPEnabled then return end
         
-        -- Создаем ESP для всех врагов
-        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-            task.wait(0.05)
-            createESP(enemy)
+        local Character = Player.Character
+        if not Character then return end
+        
+        local Humanoid = Character:FindFirstChildWhichIsA("Humanoid")
+        local Root = Character:FindFirstChild("HumanoidRootPart")
+        if not Humanoid or not Root then return end
+        
+        local Position, OnScreen = Camera:WorldToViewportPoint(Root.Position)
+        local HeadPosition, _ = Camera:WorldToViewportPoint((Character:FindFirstChild("Head") or Root).Position)
+        
+        if not OnScreen then return end
+        
+        local BoxWidth = math.clamp(3000 / Position.Z, 2, 200)
+        local BoxHeight = BoxWidth * 1.8
+        local BoxY = Position.Y - BoxHeight/2
+        local BoxX = Position.X - BoxWidth/2
+        
+        -- Box
+        if Settings.Box then
+            local BoxDrawing = Drawing.new("Square")
+            BoxDrawing.Visible = true
+            BoxDrawing.Size = Vector2.new(BoxWidth, BoxHeight)
+            BoxDrawing.Position = Vector2.new(BoxX, BoxY)
+            BoxDrawing.Color = Settings.BoxColor
+            BoxDrawing.Thickness = 2
+            BoxDrawing.Filled = false
+            table.insert(ESPObjects, BoxDrawing)
         end
         
-        -- Запускаем цикл обновления
-        coroutine.wrap(function()
-            while espEnabled and runService.RenderStepped do
-                task.wait(0.1)
-                
-                -- Обновляем персонажа если умер
-                if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
-                    local success, newChar = pcall(function()
-                        return player.CharacterAdded:Wait(2)
-                    end)
-                    if success and newChar then
-                        character = newChar
-                        rootPart = character:WaitForChild("HumanoidRootPart", 2)
-                    else
-                        continue
-                    end
-                end
-                
-                if not rootPart then continue end
-                
-                -- Обновляем дистанцию
-                for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                    local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
-                    local billboard = enemy:FindFirstChild("ESP_Gui")
-                    
-                    if enemyRoot and billboard then
-                        local label = billboard:FindFirstChild("ESP_Label")
-                        if label then
-                            local dist = (enemyRoot.Position - rootPart.Position).Magnitude
-                            dist = math.floor(dist)
-                            label.Text = enemy.Name .. "\n" .. tostring(dist) .. "м"
-                        end
-                    end
-                end
-            end
-        end)()
+        -- Tracer
+        if Settings.Tracer then
+            local TracerDrawing = Drawing.new("Line")
+            TracerDrawing.Visible = true
+            TracerDrawing.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
+            TracerDrawing.To = Vector2.new(Position.X, Position.Y)
+            TracerDrawing.Color = Settings.TracerColor
+            TracerDrawing.Thickness = 1
+            table.insert(ESPObjects, TracerDrawing)
+        end
         
-    else
-        espButton.Text = "Включить ESP"
-        statusLabel.Text = "ESP: Выключен"
-        statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        clearESP()
-    end
-end
-
--- Обновление счетчика врагов
-coroutine.wrap(function()
-    while true do
-        task.wait(1)
-        if enemyCountLabel and enemyCountLabel.Parent then
-            enemyCountLabel.Text = "Врагов: " .. #enemiesFolder:GetChildren()
+        -- Name + Distance
+        if Settings.Name or Settings.Distance then
+            local Text = ""
+            if Settings.Name then
+                Text = Player.Name
+            end
+            if Settings.Distance then
+                local Dist = math.floor((Root.Position - Camera.CFrame.Position).Magnitude)
+                Text = Text .. (Settings.Name and " ["..Dist.."m]" or "["..Dist.."m]")
+            end
+            
+            local NameDrawing = Drawing.new("Text")
+            NameDrawing.Visible = true
+            NameDrawing.Text = Text
+            NameDrawing.Position = Vector2.new(Position.X - 50, Position.Y - BoxHeight/2 - 20)
+            NameDrawing.Color = Settings.NameColor
+            NameDrawing.Size = 16
+            NameDrawing.Center = true
+            NameDrawing.Outline = true
+            table.insert(ESPObjects, NameDrawing)
+        end
+        
+        -- Health Bar
+        if Settings.Health and Humanoid.Health > 0 then
+            local HealthPercent = Humanoid.Health / Humanoid.MaxHealth
+            local BarWidth = BoxWidth + 4
+            local BarHeight = 4
+            
+            -- Background
+            local BGDrawing = Drawing.new("Square")
+            BGDrawing.Visible = true
+            BGDrawing.Size = Vector2.new(BarWidth, BarHeight)
+            BGDrawing.Position = Vector2.new(BoxX - 2, BoxY - 8)
+            BGDrawing.Color = Color3.fromRGB(50, 50, 50)
+            BGDrawing.Filled = true
+            table.insert(ESPObjects, BGDrawing)
+            
+            -- Health
+            local HealthDrawing = Drawing.new("Square")
+            HealthDrawing.Visible = true
+            HealthDrawing.Size = Vector2.new(BarWidth * HealthPercent, BarHeight)
+            HealthDrawing.Position = Vector2.new(BoxX - 2, BoxY - 8)
+            HealthDrawing.Color = Color3.fromRGB(0, 255 * (1 - HealthPercent) + 255 * HealthPercent, 0)
+            HealthDrawing.Filled = true
+            table.insert(ESPObjects, HealthDrawing)
+        end
+        
+        -- Head Dot
+        if Settings.HeadDot then
+            local DotDrawing = Drawing.new("Circle")
+            DotDrawing.Visible = true
+            DotDrawing.Position = Vector2.new(HeadPosition.X, HeadPosition.Y)
+            DotDrawing.Radius = 4
+            DotDrawing.Color = Settings.DotColor
+            DotDrawing.Filled = true
+            DotDrawing.NumSides = 16
+            table.insert(ESPObjects, DotDrawing)
         end
     end
-end)()
-
--- ========== ПЕРЕТАСКИВАНИЕ ==========
-local dragging = false
-local dragStart = nil
-local startPos = nil
-
-topBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = menuFrame.Position
-    end
-end)
-
-topBar.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
-userInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        menuFrame.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
--- ========== ОТКРЫТИЕ/ЗАКРЫТИЕ ==========
-local function toggleMenu()
-    menuVisible = not menuVisible
     
-    if menuVisible then
-        menuFrame.Visible = true
-        openButton.Visible = false
-        tweenService:Create(menuFrame, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play()
-        tweenService:Create(topBar, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
+    local Connection
+    Connection = RunService.RenderStepped:Connect(function()
+        if not Player or not Player.Parent then
+            Connection:Disconnect()
+            return
+        end
+        UpdateESP()
+    end)
+end
+
+-- Включение/выключение ESP
+local function ToggleESP(State)
+    ESPEnabled = State
+    
+    if ESPEnabled then
+        for _, Player in ipairs(Players:GetPlayers()) do
+            DrawESP(Player)
+        end
+        
+        Players.PlayerAdded:Connect(DrawESP)
     else
-        tweenService:Create(menuFrame, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-        tweenService:Create(topBar, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-        task.wait(0.2)
-        menuFrame.Visible = false
-        openButton.Visible = true
+        for _, DrawingObj in ipairs(ESPObjects) do
+            pcall(function() DrawingObj:Remove() end)
+        end
+        ESPObjects = {}
     end
 end
 
--- ========== СОБЫТИЯ ==========
-closeButton.MouseButton1Click:Connect(toggleMenu)
-openButton.MouseButton1Click:Connect(toggleMenu)
-espButton.MouseButton1Click:Connect(toggleESP)
+-- Создаем главный свитч
+local ESPToggleFrame = Instance.new("Frame")
+ESPToggleFrame.Size = UDim2.new(0.9, 0, 0, 45)
+ESPToggleFrame.Position = UDim2.new(0.05, 0, 0, Y + 10)
+ESPToggleFrame.BackgroundTransparency = 1
+ESPToggleFrame.Parent = MainFrame
 
--- Следим за новыми врагами
-enemiesFolder.ChildAdded:Connect(function(enemy)
-    task.wait(0.2)
-    createESP(enemy)
+local ESPToggleLabel = Instance.new("TextLabel")
+ESPToggleLabel.Size = UDim2.new(0.7, 0, 1, 0)
+ESPToggleLabel.Position = UDim2.new(0, 10, 0, 0)
+ESPToggleLabel.BackgroundTransparency = 1
+ESPToggleLabel.Text = "ENABLE ESP"
+ESPToggleLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+ESPToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+ESPToggleLabel.Font = Enum.Font.GothamBold
+ESPToggleLabel.TextSize = 18
+ESPToggleLabel.Parent = ESPToggleFrame
+
+local ESPToggleButton = Instance.new("TextButton")
+ESPToggleButton.Size = UDim2.new(0, 80, 0, 30)
+ESPToggleButton.Position = UDim2.new(1, -90, 0.5, -15)
+ESPToggleButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+ESPToggleButton.Text = "OFF"
+ESPToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ESPToggleButton.Font = Enum.Font.GothamBold
+ESPToggleButton.TextSize = 16
+ESPToggleButton.Parent = ESPToggleFrame
+
+local ESPToggleCorner = Instance.new("UICorner")
+ESPToggleCorner.CornerRadius = UDim.new(0, 8)
+ESPToggleCorner.Parent = ESPToggleButton
+
+-- Кнопка включения ESP
+ESPToggleButton.MouseButton1Click:Connect(function()
+    ESPEnabled = not ESPEnabled
+    ESPToggleButton.BackgroundColor3 = ESPEnabled and Color3.fromRGB(200, 0, 0) or Color3.fromRGB(0, 200, 100)
+    ESPToggleButton.Text = ESPEnabled and "ON" or "OFF"
+    ToggleESP(ESPEnabled)
 end)
 
--- Анимации
-espButton.MouseEnter:Connect(function()
-    tweenService:Create(espButton, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(70, 70, 100)}):Play()
-end)
+-- FPS Counter
+local FPSFrame = Instance.new("Frame")
+FPSFrame.Size = UDim2.new(0.9, 0, 0, 30)
+FPSFrame.Position = UDim2.new(0.05, 0, 1, -40)
+FPSFrame.BackgroundTransparency = 1
+FPSFrame.Parent = MainFrame
 
-espButton.MouseLeave:Connect(function()
-    tweenService:Create(espButton, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(50, 50, 70)}):Play()
-end)
+local FPSLabel = Instance.new("TextLabel")
+FPSLabel.Size = UDim2.new(1, 0, 1, 0)
+FPSLabel.BackgroundTransparency = 1
+FPSLabel.Text = "FPS: 60"
+FPSLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+FPSLabel.Font = Enum.Font.Gotham
+FPSLabel.TextSize = 14
+FPSLabel.Parent = FPSFrame
 
-closeButton.MouseEnter:Connect(function()
-    tweenService:Create(closeButton, TweenInfo.new(0.1), {ImageColor3 = Color3.fromRGB(255, 50, 50)}):Play()
-end)
+-- FPS Update
+local LastTime = tick()
+local Frames = 0
 
-closeButton.MouseLeave:Connect(function()
-    tweenService:Create(closeButton, TweenInfo.new(0.1), {ImageColor3 = Color3.fromRGB(255, 100, 100)}):Play()
-end)
-
-print("🎯 ESP меню готово!")
-print("📊 Статистика:")
-print("   - Игрок:", player.Name)
-print("   - Врагов:", #enemiesFolder:GetChildren())
-print("   - Меню:", menuFrame and "создано")
-print("   - Кнопки:", espButton and "готовы")
-
--- Тестовая кнопка для проверки
-local testButton = Instance.new("TextButton")
-testButton.Name = "TestButton"
-testButton.Size = UDim2.new(0, 100, 0, 30)
-testButton.Position = UDim2.new(0, 10, 0, 10)
-testButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-testButton.Text = "ТЕСТ ESP"
-testButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-testButton.Parent = gui
-testButton.Visible = false -- Скрыта, можно включить для теста
-
-testButton.MouseButton1Click:Connect(function()
-    print("🔄 Тестовое включение ESP")
-    if not espEnabled then
-        toggleESP()
+RunService.RenderStepped:Connect(function()
+    Frames = Frames + 1
+    local CurrentTime = tick()
+    if CurrentTime - LastTime >= 1 then
+        FPSLabel.Text = "FPS: " .. Frames
+        Frames = 0
+        LastTime = CurrentTime
     end
 end)
 
-print("✅ Готово! Если ESP не работает, проверь:")
-print("   1. Есть ли папка 'Enemies' в Workspace")
-print("   2. Есть ли у врагов HumanoidRootPart")
-print("   3. Открой меню и нажми кнопку ESP")
+-- Auto-update ESP when players join/leave
+Players.PlayerRemoving:Connect(function()
+    if ESPEnabled then
+        for _, DrawingObj in ipairs(ESPObjects) do
+            pcall(function() DrawingObj:Remove() end)
+        end
+        ESPObjects = {}
+        for _, Player in ipairs(Players:GetPlayers()) do
+            DrawESP(Player)
+        end
+    end
+end)
+
+print([[ 
+    ╔══════════════════════════════════╗
+    ║     ULTIMATE ESP v2.0 LOADED     ║
+    ║     Press X to close/open menu   ║
+    ║        Enjoy your ESP!            ║
+    ╚══════════════════════════════════╝
+]])
+
+-- Hotkey for menu (X key)
+UserInputService.InputBegan:Connect(function(Input, GameProcessed)
+    if GameProcessed then return end
+    if Input.KeyCode == Enum.KeyCode.X then
+        ToggleMenu()
+    end
+end)
